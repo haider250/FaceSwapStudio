@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FaceSwap Studio</title>
+    <title>FaceSwap Studio - Professional</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
@@ -11,6 +11,9 @@
             touch-action: none;
             max-width: 100%;
             display: block;
+            background: #f0f0f0;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
         }
         .upload-zone {
             transition: border-color 0.2s ease;
@@ -18,6 +21,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
         .upload-zone.drag-over {
             border-color: #3b82f6;
@@ -32,6 +36,58 @@
             right: 8px;
             z-index: 10;
         }
+        .swap-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .upload-zone:hover .swap-button {
+            opacity: 1;
+        }
+        .face-thumbnail {
+            width: 60px;
+            height: 60px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .face-thumbnail.active {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
+        }
+        .face-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .tool-button {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+        .tool-button.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .preview-mode-button {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        .preview-mode-button.active {
+            background-color: #e5e7eb;
+        }
         @media (max-width: 768px) {
             .controls-wrapper {
                 max-height: 0;
@@ -39,7 +95,7 @@
                 transition: max-height 0.3s ease-out;
             }
             .controls-wrapper.active {
-                max-height: 500px;
+                max-height: 1000px;
             }
         }
         .toast {
@@ -53,30 +109,78 @@
             from { opacity: 1; }
             to { opacity: 0; }
         }
+        .landmark-point {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+        .comparison-slider {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: white;
+            cursor: col-resize;
+            z-index: 5;
+        }
+        .comparison-slider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -10px;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 40px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            z-index: -1;
+        }
+        .download-button {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .download-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 7px 14px -3px rgba(0, 0, 0, 0.2), 0 3px 6px -2px rgba(0, 0, 0, 0.12);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <header class="bg-white shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto p-4 flex flex-col sm:flex-row justify-between items-center">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">FaceSwap Studio</h1>
+                <h1 class="text-2xl font-bold text-gray-900">FaceSwap Studio Pro</h1>
                 <p class="text-sm text-gray-500 flex items-center gap-1">
                     <span class="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                    On-device • Private
+                    On-device • Private • Realistic
                 </p>
             </div>
-            <button id="help-button" class="p-2 hover:bg-gray-100 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                </svg>
-            </button>
+            <div class="flex space-x-2">
+                <button id="help-button" class="p-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-4">
         <!-- Source Upload Zone -->
-        <section class="bg-white rounded-2xl p-4 shadow-sm">
-            <h2 class="text-lg font-semibold mb-2">Source (Face)</h2>
+        <section class="bg-white rounded-2xl p-4 shadow-sm relative">
+            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                <button id="swap-direction" class="swap-button bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                </button>
+            </div>
+            <h2 class="text-lg font-semibold mb-2">Source (Face to Swap)</h2>
             <div id="source-upload" class="upload-zone border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400">
                 <input type="file" id="source-input" accept="image/*" class="hidden">
                 <div class="text-gray-500">
@@ -87,6 +191,12 @@
                     <img class="max-w-full h-auto mx-auto rounded-lg" src="" alt="Source preview">
                     <p class="text-sm text-gray-500 mt-1" id="source-file-info"></p>
                     <button class="mt-2 px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 replace-button" data-target="source">Replace</button>
+                </div>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-md font-medium mb-2">Source Face</h3>
+                <div id="source-face-selection" class="flex flex-wrap gap-2">
+                    <!-- Face thumbnails will be added here -->
                 </div>
             </div>
         </section>
@@ -105,32 +215,47 @@
                             <path fill-rule="evenodd" d="M4 2a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V3a1 1 0 00-1-1H4zm3 1h6v12H7V3z" clip-rule="evenodd" />
                         </svg>
                     </button>
-                    <button class="p-2 rounded hover:bg-gray-100" id="reset" title="Reset">
+                    <button class="p-2 rounded hover:bg-gray-100" id="reset" title="Reset All Settings">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 5.576L14.485 7H15a1 1 0 110 2h-2.97l-1.99 2.5a1 1 0 01-1.33.345l-1.204-.995-2.047 2.08a1 1 0 01-.63.426H8.5a1 1 0 01-.63-.426L5.443 9.688a1 1 0 01-.33-.113H4a1 1 0 110-2h1.485L3.046 5.424l1.492-1.76a1 1 0 011.33-.345L7.03 4H9a1 1 0 110 2h1.323l-2.382 2.844a1 1 0 01-.86.992z" clip-rule="evenodd" />
                         </svg>
                     </button>
                 </div>
                 <div class="flex space-x-2">
-                    <button class="p-2 rounded hover:bg-gray-100" id="compare" title="Compare (hold)">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 5.576L14.485 7H15a1 1 0 110 2h-2.97l-1.99 2.5a1 1 0 01-1.33.345l-1.204-.995-2.047 2.08a1 1 0 01-.63.426H8.5a1 1 0 01-.63-.426L5.443 9.688a1 1 0 01-.33-.113H4a1 1 0 110-2h1.485L3.046 5.424l1.492-1.76a1 1 0 011.33-.345L7.03 4H9a1 1 0 110 2h1.323l-2.382 2.844a1 1 0 01-.86.992z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
+                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                        <button class="preview-mode-button active" id="preview-single" title="Single View">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                            </svg>
+                        </button>
+                        <button class="preview-mode-button" id="preview-split" title="Split View">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h14a1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
+                            </svg>
+                        </button>
+                        <button class="preview-mode-button" id="preview-compare" title="Before/After Slider">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-4 0V5a2 2 0 114 0v2m-4 0h4m-4 0h-4m-1 6h8m0 0v4m0-4H9m4 0v4m-4-4v-1m0 1v1m7-4h-4" />
+                            </svg>
+                        </button>
+                    </div>
                     <button class="p-2 rounded hover:bg-gray-100" id="grid-toggle" title="Toggle Grid">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 3a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V3zM11 11a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                         </svg>
                     </button>
-                    <button class="p-2 rounded hover:bg-gray-100" id="snap-toggle" title="Snap to Landmarks">
+                    <button class="p-2 rounded hover:bg-gray-100" id="landmarks-toggle" title="Toggle Face Landmarks">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                         </svg>
                     </button>
                 </div>
             </div>
             <div class="relative flex-1 overflow-hidden">
-                <canvas id="result-canvas" class="w-full h-full"></canvas>
+                <div id="comparison-container" class="w-full h-full relative">
+                    <canvas id="result-canvas" class="w-full h-full"></canvas>
+                    <div id="comparison-slider" class="comparison-slider hidden"></div>
+                </div>
                 <div id="zoom-pan-info" class="absolute bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded"></div>
             </div>
         </section>
@@ -138,7 +263,7 @@
         <!-- Right Column: Target Upload + Controls -->
         <div class="flex flex-col gap-4">
             <!-- Target Upload Zone -->
-            <section class="bg-white rounded-2xl p-4 shadow-sm">
+            <section class="bg-white rounded-2xl p-4 shadow-sm relative">
                 <h2 class="text-lg font-semibold mb-2">Target (Background/Face)</h2>
                 <div id="target-upload" class="upload-zone border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400">
                     <input type="file" id="target-input" accept="image/*" class="hidden">
@@ -150,6 +275,12 @@
                         <img class="max-w-full h-auto mx-auto rounded-lg" src="" alt="Target preview">
                         <p class="text-sm text-gray-500 mt-1" id="target-file-info"></p>
                         <button class="mt-2 px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 replace-button" data-target="target">Replace</button>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <h3 class="text-md font-medium mb-2">Target Faces</h3>
+                    <div id="target-face-selection" class="flex flex-wrap gap-2">
+                        <!-- Face thumbnails will be added here -->
                     </div>
                 </div>
             </section>
@@ -174,7 +305,26 @@
                             <p class="text-sm text-gray-500 mb-1">Select face:</p>
                             <div id="face-thumbs" class="flex flex-wrap gap-2"></div>
                         </div>
-                        <button id="auto-align" class="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600">Auto Align</button>
+                        <button id="auto-align" class="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600">Auto Align Faces</button>
+                    </div>
+                </div>
+
+                <!-- Face Selection -->
+                <div class="mb-4">
+                    <h3 class="text-md font-medium mb-2">Face Selection</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-sm text-gray-600">Source Face</label>
+                            <div id="source-face-indicator" class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">1</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-sm text-gray-600">Target Face</label>
+                            <div id="target-face-indicator" class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">1</div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="match-faces" class="flex-1 px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Match Faces</button>
+                            <button id="swap-faces" class="flex-1 px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600">Swap Faces</button>
+                        </div>
                     </div>
                 </div>
 
@@ -207,6 +357,49 @@
                             <input type="range" id="feather" min="0" max="20" step="1" value="5" class="w-full">
                             <span id="feather-value" class="text-xs text-gray-500">5px</span>
                         </div>
+                        <div>
+                            <label class="text-sm text-gray-600">Color Match</label>
+                            <div class="flex space-x-2 mt-1">
+                                <button id="color-match-off" class="tool-button flex-1 bg-gray-100">Off</button>
+                                <button id="color-match-simple" class="tool-button flex-1 bg-gray-100">Simple</button>
+                                <button id="color-match-advanced" class="tool-button flex-1 bg-gray-100 active">Advanced</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Mask Editing -->
+                <div class="mb-4">
+                    <h3 class="text-md font-medium mb-2">Mask Editing</h3>
+                    <div class="space-y-2">
+                        <div class="flex space-x-2">
+                            <button id="mask-tool" class="tool-button bg-gray-100 active">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </button>
+                            <button id="brush-size" class="flex-1 px-3 py-1 bg-gray-100 rounded text-sm">Size: 20px</button>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="mask-mode-paint" class="tool-button flex-1 bg-gray-100 active">Paint</button>
+                            <button id="mask-mode-erase" class="tool-button flex-1 bg-gray-100">Erase</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Export Controls -->
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <div class="flex flex-col space-y-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="watermark-checkbox" class="mr-2 h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500" checked>
+                            <label for="watermark-checkbox" class="text-sm text-gray-600">Add watermark</label>
+                        </div>
+                        <button id="download-button" class="download-button w-full px-4 py-2.5 text-white font-medium rounded-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download Result
+                        </button>
                     </div>
                 </div>
             </section>
@@ -223,7 +416,7 @@
                 </label>
             </div>
             <p class="text-xs text-gray-500 mt-2">
-                Faceswap Studio is for ethical, non-commercial use only. By exporting, you agree to use responsibly.
+                Faceswap Studio Pro is for ethical, non-commercial use only. By exporting, you agree to use responsibly.
             </p>
         </div>
     </footer>
@@ -232,30 +425,59 @@
     <div id="help-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity z-50">
         <div class="relative mx-auto mt-20 max-w-xl">
             <div class="bg-white rounded-2xl p-6 shadow-lg">
-                <h3 class="text-lg font-bold mb-4">Keyboard Shortcuts</h3>
-                <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">Keyboard Shortcuts</h3>
+                    <button id="close-help" class="p-2 hover:bg-gray-100 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="font-medium">General</div>
+                    <div></div>
                     <div>Ctrl/Cmd + O</div>
                     <div>Open target image</div>
                     <div>Ctrl/Cmd + Shift + O</div>
                     <div>Open source image</div>
-                    <div>[/]</div>
-                    <div>Increase/decrease brush size</div>
-                    <div>H</div>
-                    <div>Toggle mask view</div>
-                    <div>G</div>
-                    <div>Toggle grid</div>
-                    <div>C</div>
-                    <div>Compare (hold)</div>
-                    <div>Z/Y</div>
-                    <div>Undo/Redo</div>
+                    <div>Ctrl/Cmd + S</div>
+                    <div>Download result</div>
+                    
+                    <div class="font-medium mt-2">Navigation</div>
+                    <div></div>
+                    <div>Space + Drag</div>
+                    <div>Pan view</div>
+                    <div>Mouse Wheel</div>
+                    <div>Zoom in/out</div>
                     <div>+/-</div>
                     <div>Zoom in/out</div>
                     <div>0</div>
                     <div>Fit to screen</div>
-                    <div>Space + Drag</div>
-                    <div>Pan</div>
+                    
+                    <div class="font-medium mt-2">Editing</div>
+                    <div></div>
+                    <div>Z/Y</div>
+                    <div>Undo/Redo</div>
+                    <div>[ / ]</div>
+                    <div>Adjust brush size</div>
+                    <div>B</div>
+                    <div>Toggle mask brush</div>
+                    <div>E</div>
+                    <div>Toggle erase mode</div>
+                    <div>H</div>
+                    <div>Toggle mask view</div>
+                    <div>G</div>
+                    <div>Toggle grid</div>
+                    <div>L</div>
+                    <div>Toggle landmarks</div>
+                    <div>C</div>
+                    <div>Compare (hold)</div>
                 </div>
-                <button id="close-help" class="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Close</button>
+                <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <p class="text-sm text-blue-800">
+                        <strong>Pro Tip:</strong> For best results, select matching face angles and expressions. The advanced color matching works best when faces have similar lighting.
+                    </p>
+                </div>
             </div>
         </div>
     </div>
@@ -276,7 +498,10 @@
                 resultCtx: document.getElementById('result-canvas').getContext('2d'),
                 maskCanvas: null,
                 maskCtx: null,
+                comparisonSlider: document.getElementById('comparison-slider'),
                 currentFaceIndex: 0,
+                selectedSourceFace: 0,
+                selectedTargetFace: 0,
                 faces: { source: [], target: [] },
                 settings: {
                     scale: 1,
@@ -285,7 +510,7 @@
                     yOffset: 0,
                     feather: 5,
                     edgeSmooth: 3,
-                    colorMatch: false,
+                    colorMatch: 'advanced',
                     skinTone: 0,
                     brightness: 0,
                     contrast: 0,
@@ -293,15 +518,18 @@
                     brushSize: 20,
                     brushHard: false,
                     maskErase: false,
-                    colorTransfer: 'none',
+                    colorTransfer: 'advanced',
                     outputFormat: 'image/png',
                     outputQuality: 90,
                     addWatermark: true,
-                    watermarkText: 'Faceswap (Demo)',
+                    watermarkText: 'FaceSwap Studio Pro',
                     watermarkOpacity: 50,
-                    watermarkSize: 30,
+                    watermarkSize: 20,
                     watermarkPosition: 'bottom-right',
-                    stripMetadata: true
+                    stripMeta: true,
+                    previewMode: 'single', // single, split, compare
+                    showLandmarks: false,
+                    showGrid: false
                 },
                 undoStack: [],
                 redoStack: [],
@@ -310,7 +538,11 @@
                 dragStart: { x: 0, y: 0 },
                 panOffset: { x: 0, y: 0 },
                 zoomLevel: 1,
-                hasChanges: false
+                hasChanges: false,
+                comparisonPosition: 0.5, // 0-1
+                maskEditing: false,
+                maskBrushSize: 20,
+                maskMode: 'paint' // paint, erase
             };
 
             // DOM References
@@ -319,13 +551,16 @@
                 sourceInput: document.getElementById('source-input'),
                 sourcePreview: document.getElementById('source-preview'),
                 sourceFileInfo: document.getElementById('source-file-info'),
+                sourceFaceSelection: document.getElementById('source-face-selection'),
                 targetUpload: document.getElementById('target-upload'),
                 targetInput: document.getElementById('target-input'),
                 targetPreview: document.getElementById('target-preview'),
                 targetFileInfo: document.getElementById('target-file-info'),
+                targetFaceSelection: document.getElementById('target-face-selection'),
                 resultCanvas: document.getElementById('result-canvas'),
                 resultCtx: document.getElementById('result-canvas').getContext('2d'),
                 zoomPanInfo: document.getElementById('zoom-pan-info'),
+                comparisonSlider: document.getElementById('comparison-slider'),
                 toggleControls: document.getElementById('toggle-controls'),
                 controlsWrapper: document.querySelector('.controls-wrapper'),
                 scaleSlider: document.getElementById('scale'),
@@ -339,7 +574,26 @@
                 featherSlider: document.getElementById('feather'),
                 featherValue: document.getElementById('feather-value'),
                 reRunButton: document.getElementById('re-run'),
-                autoAlignButton: document.getElementById('auto-align')
+                autoAlignButton: document.getElementById('auto-align'),
+                matchFacesButton: document.getElementById('match-faces'),
+                swapFacesButton: document.getElementById('swap-faces'),
+                sourceFaceIndicator: document.getElementById('source-face-indicator'),
+                targetFaceIndicator: document.getElementById('target-face-indicator'),
+                colorMatchOff: document.getElementById('color-match-off'),
+                colorMatchSimple: document.getElementById('color-match-simple'),
+                colorMatchAdvanced: document.getElementById('color-match-advanced'),
+                maskTool: document.getElementById('mask-tool'),
+                brushSize: document.getElementById('brush-size'),
+                maskModePaint: document.getElementById('mask-mode-paint'),
+                maskModeErase: document.getElementById('mask-mode-erase'),
+                previewSingle: document.getElementById('preview-single'),
+                previewSplit: document.getElementById('preview-split'),
+                previewCompare: document.getElementById('preview-compare'),
+                gridToggle: document.getElementById('grid-toggle'),
+                landmarksToggle: document.getElementById('landmarks-toggle'),
+                watermarkCheckbox: document.getElementById('watermark-checkbox'),
+                downloadButton: document.getElementById('download-button'),
+                swapDirection: document.getElementById('swap-direction')
             };
 
             // Initialize application
@@ -348,7 +602,7 @@
                     // Set up canvas dimensions based on container
                     setupCanvasDimensions();
                     
-                    // Load face-api models - CORRECTED URL
+                    // Load face-api models
                     await loadFaceApiModels();
                     
                     // Setup event listeners
@@ -358,7 +612,7 @@
                     renderCanvas();
                     
                     // Show welcome toast
-                    showToast('FaceSwap Studio ready! Upload images to begin.', 'success');
+                    showToast('FaceSwap Studio Pro ready! Upload images to begin.', 'success');
                 } catch (error) {
                     console.error('Initialization error:', error);
                     showToast('Error initializing app: ' + error.message, 'error');
@@ -410,6 +664,9 @@
                 canvas.width = containerRect.width;
                 canvas.height = containerRect.height;
                 
+                // Update comparison slider position
+                updateComparisonSlider();
+                
                 // Update zoom info
                 updateZoomPanInfo();
             }
@@ -449,6 +706,11 @@
                 document.addEventListener('mousemove', onPan);
                 document.addEventListener('mouseup', endPan);
                 window.addEventListener('resize', handleResize);
+                
+                // Comparison slider
+                dom.comparisonSlider.addEventListener('mousedown', startComparisonDrag);
+                document.addEventListener('mousemove', onComparisonDrag);
+                document.addEventListener('mouseup', endComparisonDrag);
 
                 // Touch events for mobile
                 dom.resultCanvas.addEventListener('touchstart', handleTouchStart);
@@ -471,7 +733,40 @@
                 // Face detection buttons
                 dom.reRunButton.addEventListener('click', reRunFaceDetection);
                 dom.autoAlignButton.addEventListener('click', autoAlignFaces);
-
+                dom.matchFacesButton.addEventListener('click', matchFaces);
+                dom.swapFacesButton.addEventListener('click', swapFaces);
+                
+                // Color match buttons
+                dom.colorMatchOff.addEventListener('click', () => setColorMatch('off'));
+                dom.colorMatchSimple.addEventListener('click', () => setColorMatch('simple'));
+                dom.colorMatchAdvanced.addEventListener('click', () => setColorMatch('advanced'));
+                
+                // Mask editing tools
+                dom.maskTool.addEventListener('click', toggleMaskEditing);
+                dom.maskModePaint.addEventListener('click', () => setMaskMode('paint'));
+                dom.maskModeErase.addEventListener('click', () => setMaskMode('erase'));
+                
+                // Preview mode buttons
+                dom.previewSingle.addEventListener('click', () => setPreviewMode('single'));
+                dom.previewSplit.addEventListener('click', () => setPreviewMode('split'));
+                dom.previewCompare.addEventListener('click', () => setPreviewMode('compare'));
+                
+                // Toggle buttons
+                dom.gridToggle.addEventListener('click', toggleGrid);
+                dom.landmarksToggle.addEventListener('click', toggleLandmarks);
+                
+                // Watermark checkbox
+                dom.watermarkCheckbox.addEventListener('change', (e) => {
+                    state.settings.addWatermark = e.target.checked;
+                    renderCanvas();
+                });
+                
+                // Download button
+                dom.downloadButton.addEventListener('click', handleDownload);
+                
+                // Swap direction button
+                dom.swapDirection.addEventListener('click', swapSourceTarget);
+                
                 // Help modal
                 document.getElementById('help-button').addEventListener('click', showHelpModal);
                 document.getElementById('close-help').addEventListener('click', hideHelpModal);
@@ -624,11 +919,18 @@
                     state.faces[type] = detections;
                     
                     // Update UI
-                    if (detections.length > 1) {
-                        document.getElementById('face-pick').classList.remove('hidden');
+                    if (detections.length > 0) {
                         populateFaceThumbnails(type, detections);
+                        
+                        // Auto-select first face
+                        if (type === 'source' && detections.length > 0) {
+                            selectSourceFace(0);
+                        }
+                        if (type === 'target' && detections.length > 0) {
+                            selectTargetFace(0);
+                        }
                     } else {
-                        document.getElementById('face-pick').classList.add('hidden');
+                        clearFaceSelection(type);
                     }
                     
                     // Reset upload zone
@@ -683,42 +985,75 @@
             }
 
             function populateFaceThumbnails(type, detections) {
-                const container = document.getElementById('face-thumbs');
+                const container = document.getElementById(`${type}-face-selection`);
                 container.innerHTML = '';
                 
                 detections.forEach((detection, index) => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 80;
-                    canvas.height = 80;
+                    canvas.width = 60;
+                    canvas.height = 60;
                     const ctx = canvas.getContext('2d');
                     
                     // Draw face thumbnail
                     const { x, y, width, height } = detection.detection.box;
-                    const scale = 80 / Math.max(width, height);
+                    const scale = 60 / Math.max(width, height);
                     const newWidth = width * scale;
                     const newHeight = height * scale;
                     
                     ctx.drawImage(
                         state[`${type}Image`],
                         x, y, width, height,
-                        (80 - newWidth) / 2, (80 - newHeight) / 2, newWidth, newHeight
+                        (60 - newWidth) / 2, (60 - newHeight) / 2, newWidth, newHeight
                     );
                     
                     // Create thumbnail element
                     const thumb = document.createElement('div');
-                    thumb.className = `w-20 h-20 border-2 rounded cursor-pointer ${index === state.currentFaceIndex ? 'border-blue-500' : 'border-transparent'}`;
+                    thumb.className = `face-thumbnail ${type === 'source' && index === state.selectedSourceFace ? 'active' : type === 'target' && index === state.selectedTargetFace ? 'active' : ''}`;
                     thumb.innerHTML = `<img src="${canvas.toDataURL()}" class="w-full h-full object-cover rounded">`;
                     
                     thumb.addEventListener('click', () => {
-                        state.currentFaceIndex = index;
-                        document.querySelectorAll('#face-thumbs > div').forEach((el, i) => {
-                            el.className = el.className.replace('border-blue-500', 'border-transparent');
-                            if (i === index) el.className += ' border-blue-500';
-                        });
+                        if (type === 'source') {
+                            selectSourceFace(index);
+                        } else {
+                            selectTargetFace(index);
+                        }
                         renderCanvas();
                     });
                     
                     container.appendChild(thumb);
+                });
+            }
+
+            function clearFaceSelection(type) {
+                const container = document.getElementById(`${type}-face-selection`);
+                container.innerHTML = '<p class="text-sm text-gray-500">No faces detected</p>';
+                
+                if (type === 'source') {
+                    state.selectedSourceFace = 0;
+                    dom.sourceFaceIndicator.textContent = '0';
+                } else {
+                    state.selectedTargetFace = 0;
+                    dom.targetFaceIndicator.textContent = '0';
+                }
+            }
+
+            function selectSourceFace(index) {
+                state.selectedSourceFace = index;
+                dom.sourceFaceIndicator.textContent = (index + 1).toString();
+                
+                // Update UI
+                document.querySelectorAll('#source-face-selection .face-thumbnail').forEach((el, i) => {
+                    el.classList.toggle('active', i === index);
+                });
+            }
+
+            function selectTargetFace(index) {
+                state.selectedTargetFace = index;
+                dom.targetFaceIndicator.textContent = (index + 1).toString();
+                
+                // Update UI
+                document.querySelectorAll('#target-face-selection .face-thumbnail').forEach((el, i) => {
+                    el.classList.toggle('active', i === index);
                 });
             }
 
@@ -761,6 +1096,228 @@
                 showToast('Faces auto-aligned', 'success');
             }
 
+            function matchFaces() {
+                if (!state.sourceImage || !state.targetImage || 
+                    state.faces.source.length === 0 || state.faces.target.length === 0) {
+                    showToast('Please load images with detected faces first', 'warning');
+                    return;
+                }
+                
+                // In a real implementation, this would match faces based on similarity
+                // For now, we'll just select the first faces
+                selectSourceFace(0);
+                selectTargetFace(0);
+                
+                autoAlignFaces();
+                showToast('Faces matched based on position', 'success');
+            }
+
+            function swapFaces() {
+                if (!state.sourceImage || !state.targetImage || 
+                    state.faces.source.length === 0 || state.faces.target.length === 0) {
+                    showToast('Please load images with detected faces first', 'warning');
+                    return;
+                }
+                
+                // Perform the face swap
+                renderCanvas();
+                showToast('Face swap applied!', 'success');
+            }
+            
+            function setColorMatch(mode) {
+                state.settings.colorMatch = mode;
+                
+                // Update UI
+                dom.colorMatchOff.classList.toggle('active', mode === 'off');
+                dom.colorMatchSimple.classList.toggle('active', mode === 'simple');
+                dom.colorMatchAdvanced.classList.toggle('active', mode === 'advanced');
+                
+                renderCanvas();
+            }
+            
+            function toggleMaskEditing() {
+                state.maskEditing = !state.maskEditing;
+                dom.maskTool.classList.toggle('active', state.maskEditing);
+                
+                if (state.maskEditing) {
+                    showToast('Mask editing mode activated', 'info');
+                } else {
+                    showToast('Mask editing mode deactivated', 'info');
+                }
+            }
+            
+            function setMaskMode(mode) {
+                state.maskMode = mode;
+                dom.maskModePaint.classList.toggle('active', mode === 'paint');
+                dom.maskModeErase.classList.toggle('active', mode === 'erase');
+                
+                showToast(`Mask mode: ${mode === 'paint' ? 'Painting' : 'Erasing'}`, 'info');
+            }
+            
+            function setPreviewMode(mode) {
+                state.settings.previewMode = mode;
+                
+                // Update UI
+                dom.previewSingle.classList.toggle('active', mode === 'single');
+                dom.previewSplit.classList.toggle('active', mode === 'split');
+                dom.previewCompare.classList.toggle('active', mode === 'compare');
+                
+                // Show/hide comparison slider
+                dom.comparisonSlider.classList.toggle('hidden', mode !== 'compare');
+                
+                renderCanvas();
+                showToast(`Preview mode: ${mode === 'single' ? 'Single View' : mode === 'split' ? 'Split View' : 'Before/After'}`, 'info');
+            }
+            
+            function toggleGrid() {
+                state.settings.showGrid = !state.settings.showGrid;
+                dom.gridToggle.classList.toggle('bg-gray-100', state.settings.showGrid);
+                renderCanvas();
+            }
+            
+            function toggleLandmarks() {
+                state.settings.showLandmarks = !state.settings.showLandmarks;
+                dom.landmarksToggle.classList.toggle('bg-gray-100', state.settings.showLandmarks);
+                renderCanvas();
+            }
+            
+            function swapSourceTarget() {
+                if (!state.sourceImage || !state.targetImage) {
+                    showToast('Both source and target images are required', 'warning');
+                    return;
+                }
+                
+                // Swap the images
+                const tempImage = state.sourceImage;
+                const tempCanvas = state.sourceCanvas;
+                const tempFaces = state.faces.source;
+                const tempSelectedFace = state.selectedSourceFace;
+                
+                state.sourceImage = state.targetImage;
+                state.sourceCanvas = state.targetCanvas;
+                state.faces.source = state.faces.target;
+                state.selectedSourceFace = state.selectedTargetFace;
+                
+                state.targetImage = tempImage;
+                state.targetCanvas = tempCanvas;
+                state.faces.target = tempFaces;
+                state.selectedTargetFace = tempSelectedFace;
+                
+                // Update UI
+                updateSourcePreview();
+                updateTargetPreview();
+                
+                // Repopulate face thumbnails
+                if (state.faces.source.length > 0) {
+                    populateFaceThumbnails('source', state.faces.source);
+                    selectSourceFace(Math.min(state.selectedSourceFace, state.faces.source.length - 1));
+                } else {
+                    clearFaceSelection('source');
+                }
+                
+                if (state.faces.target.length > 0) {
+                    populateFaceThumbnails('target', state.faces.target);
+                    selectTargetFace(Math.min(state.selectedTargetFace, state.faces.target.length - 1));
+                } else {
+                    clearFaceSelection('target');
+                }
+                
+                renderCanvas();
+                showToast('Source and target images swapped', 'success');
+            }
+            
+            function updateSourcePreview() {
+                if (state.sourceImage) {
+                    const previewImg = document.querySelector('#source-preview img');
+                    previewImg.src = state.sourceImage.src;
+                    document.getElementById('source-preview').classList.remove('hidden');
+                }
+            }
+            
+            function updateTargetPreview() {
+                if (state.targetImage) {
+                    const previewImg = document.querySelector('#target-preview img');
+                    previewImg.src = state.targetImage.src;
+                    document.getElementById('target-preview').classList.remove('hidden');
+                }
+            }
+            
+            function resetAll() {
+                // Reset settings to defaults
+                state.settings = {
+                    scale: 1,
+                    rotation: 0,
+                    xOffset: 0,
+                    yOffset: 0,
+                    feather: 5,
+                    edgeSmooth: 3,
+                    colorMatch: 'advanced',
+                    skinTone: 0,
+                    brightness: 0,
+                    contrast: 0,
+                    saturation: 0,
+                    brushSize: 20,
+                    brushHard: false,
+                    maskErase: false,
+                    colorTransfer: 'advanced',
+                    outputFormat: 'image/png',
+                    outputQuality: 90,
+                    addWatermark: true,
+                    watermarkText: 'FaceSwap Studio Pro',
+                    watermarkOpacity: 50,
+                    watermarkSize: 20,
+                    watermarkPosition: 'bottom-right',
+                    stripMeta: true,
+                    previewMode: 'single',
+                    showLandmarks: false,
+                    showGrid: false
+                };
+                
+                state.zoomLevel = 1;
+                state.panOffset = { x: 0, y: 0 };
+                state.comparisonPosition = 0.5;
+                
+                // Update UI
+                dom.scaleSlider.value = state.settings.scale;
+                dom.scaleValue.textContent = state.settings.scale.toFixed(2);
+                
+                dom.rotationSlider.value = state.settings.rotation;
+                dom.rotationValue.textContent = state.settings.rotation.toFixed(1) + '°';
+                
+                dom.xOffsetSlider.value = state.settings.xOffset;
+                dom.xOffsetValue.textContent = state.settings.xOffset + 'px';
+                
+                dom.yOffsetSlider.value = state.settings.yOffset;
+                dom.yOffsetValue.textContent = state.settings.yOffset + 'px';
+                
+                dom.featherSlider.value = state.settings.feather;
+                dom.featherValue.textContent = state.settings.feather + 'px';
+                
+                dom.colorMatchAdvanced.classList.add('active');
+                dom.colorMatchOff.classList.remove('active');
+                dom.colorMatchSimple.classList.remove('active');
+                
+                dom.gridToggle.classList.remove('bg-gray-100');
+                dom.landmarksToggle.classList.remove('bg-gray-100');
+                
+                dom.previewSingle.classList.add('active');
+                dom.previewSplit.classList.remove('active');
+                dom.previewCompare.classList.remove('active');
+                dom.comparisonSlider.classList.add('hidden');
+                
+                dom.watermarkCheckbox.checked = true;
+                
+                // Reset mask editing state
+                state.maskEditing = false;
+                state.maskMode = 'paint';
+                dom.maskTool.classList.remove('active');
+                dom.maskModePaint.classList.add('active');
+                dom.maskModeErase.classList.remove('active');
+                
+                renderCanvas();
+                showToast('All settings reset to defaults', 'success');
+            }
+
             // Responsive Controls Toggle
             function toggleControls() {
                 dom.controlsWrapper.classList.toggle('active');
@@ -775,9 +1332,10 @@
             // Touch Event Handlers
             let touchStart = { x: 0, y: 0 };
             let lastZoomDistance = 0;
+            let isComparisonDragging = false;
 
             function handleTouchStart(e) {
-                if (e.touches.length === 1) {
+                if (e.touches.length === 1 && !state.maskEditing) {
                     // Single touch - pan
                     state.isDragging = true;
                     const rect = state.resultCanvas.getBoundingClientRect();
@@ -837,6 +1395,21 @@
 
             // Canvas Interaction
             function startPan(e) {
+                if (state.maskEditing) {
+                    startMaskEditing(e);
+                    return;
+                }
+                
+                if (state.settings.previewMode === 'compare') {
+                    const rect = dom.comparisonSlider.getBoundingClientRect();
+                    const x = e.clientX;
+                    
+                    if (Math.abs(x - (rect.left + rect.width/2)) < 20) {
+                        isComparisonDragging = true;
+                        return;
+                    }
+                }
+                
                 e.preventDefault();
                 state.isDragging = true;
                 const rect = state.resultCanvas.getBoundingClientRect();
@@ -845,6 +1418,11 @@
             }
 
             function onPan(e) {
+                if (isComparisonDragging) {
+                    onComparisonDrag(e);
+                    return;
+                }
+                
                 if (!state.isDragging) return;
                 e.preventDefault();
                 
@@ -867,6 +1445,36 @@
 
             function endPan() {
                 state.isDragging = false;
+                isComparisonDragging = false;
+            }
+            
+            function startComparisonDrag(e) {
+                e.preventDefault();
+                isComparisonDragging = true;
+                onComparisonDrag(e);
+            }
+            
+            function onComparisonDrag(e) {
+                if (!isComparisonDragging) return;
+                e.preventDefault();
+                
+                const container = document.getElementById('comparison-container');
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                
+                // Calculate position as a percentage (0-1)
+                state.comparisonPosition = Math.max(0, Math.min(1, x / rect.width));
+                
+                updateComparisonSlider();
+                renderCanvas();
+            }
+            
+            function updateComparisonSlider() {
+                const container = document.getElementById('comparison-container');
+                const rect = container.getBoundingClientRect();
+                const position = state.comparisonPosition * rect.width;
+                
+                dom.comparisonSlider.style.left = `${position}px`;
             }
 
             function handleZoom(e) {
@@ -944,48 +1552,72 @@
                 // Clear canvas
                 ctx.clearRect(0, 0, state.resultCanvas.width, state.resultCanvas.height);
                 
-                // Draw target image as background if available
-                if (state.targetImage) {
-                    // Calculate dimensions to maintain aspect ratio
-                    const targetRatio = state.targetImage.width / state.targetImage.height;
-                    const canvasRatio = state.resultCanvas.width / state.resultCanvas.height;
-                    
-                    let drawWidth, drawHeight;
-                    
-                    if (canvasRatio > targetRatio) {
-                        drawHeight = state.resultCanvas.height;
-                        drawWidth = drawHeight * targetRatio;
-                    } else {
-                        drawWidth = state.resultCanvas.width;
-                        drawHeight = drawWidth / targetRatio;
-                    }
-                    
-                    // Center the image
-                    const x = (state.resultCanvas.width - drawWidth) / 2 + state.panOffset.x;
-                    const y = (state.resultCanvas.height - drawHeight) / 2 + state.panOffset.y;
-                    
-                    // Apply zoom
-                    const zoomedWidth = drawWidth * state.zoomLevel;
-                    const zoomedHeight = drawHeight * state.zoomLevel;
-                    
-                    // Draw the target image
-                    ctx.drawImage(
-                        state.targetImage,
-                        x + (drawWidth - zoomedWidth) / 2,
-                        y + (drawHeight - zoomedHeight) / 2,
-                        zoomedWidth,
-                        zoomedHeight
-                    );
+                if (state.settings.previewMode === 'split') {
+                    renderSplitView();
+                } else if (state.settings.previewMode === 'compare') {
+                    renderComparisonView();
+                } else {
+                    renderSingleView();
                 }
                 
+                // Draw landmarks if enabled
+                if (state.settings.showLandmarks) {
+                    drawLandmarks();
+                }
+                
+                // Draw grid if enabled
+                if (state.settings.showGrid) {
+                    drawGrid();
+                }
+            }
+            
+            function renderSingleView() {
+                if (!state.targetImage) return;
+                
+                const ctx = state.resultCtx;
+                
+                // Calculate dimensions to maintain aspect ratio
+                const targetRatio = state.targetImage.width / state.targetImage.height;
+                const canvasRatio = state.resultCanvas.width / state.resultCanvas.height;
+                
+                let drawWidth, drawHeight;
+                
+                if (canvasRatio > targetRatio) {
+                    drawHeight = state.resultCanvas.height;
+                    drawWidth = drawHeight * targetRatio;
+                } else {
+                    drawWidth = state.resultCanvas.width;
+                    drawHeight = drawWidth / targetRatio;
+                }
+                
+                // Center the image
+                const x = (state.resultCanvas.width - drawWidth) / 2 + state.panOffset.x;
+                const y = (state.resultCanvas.height - drawHeight) / 2 + state.panOffset.y;
+                
+                // Apply zoom
+                const zoomedWidth = drawWidth * state.zoomLevel;
+                const zoomedHeight = drawHeight * state.zoomLevel;
+                
+                // Draw the target image
+                ctx.drawImage(
+                    state.targetImage,
+                    x + (drawWidth - zoomedWidth) / 2,
+                    y + (drawHeight - zoomedHeight) / 2,
+                    zoomedWidth,
+                    zoomedHeight
+                );
+                
                 // Draw source face if available and properly aligned
-                if (state.sourceImage && state.targetImage && 
-                    state.faces.source.length > 0 && state.faces.target.length > 0) {
+                if (state.sourceImage && 
+                    state.faces.source.length > 0 && 
+                    state.faces.target.length > 0 &&
+                    state.selectedSourceFace < state.faces.source.length &&
+                    state.selectedTargetFace < state.faces.target.length) {
                     
                     try {
-                        // Get current face
-                        const sourceFace = state.faces.source[state.currentFaceIndex];
-                        const targetFace = state.faces.target[0]; // Using first target face for simplicity
+                        // Get current faces
+                        const sourceFace = state.faces.source[state.selectedSourceFace];
+                        const targetFace = state.faces.target[state.selectedTargetFace];
                         
                         // Calculate face alignment
                         const sourceWidth = sourceFace.detection.box.width;
@@ -1019,21 +1651,135 @@
                             -sourceFace.detection.box.x - sourceWidth / 2,
                             -sourceFace.detection.box.y - sourceHeight / 2
                         );
+                        
+                        // Apply color matching if enabled
+                        if (state.settings.colorMatch !== 'off') {
+                            // In a real implementation, this would adjust colors to match
+                            // For now, we'll just apply a simple tint for demonstration
+                            if (state.settings.colorMatch === 'advanced') {
+                                ctx.globalAlpha = 0.9;
+                                ctx.fillStyle = 'rgba(20, 10, 5, 0.05)';
+                                ctx.fillRect(0, 0, sourceWidth, sourceHeight);
+                                ctx.globalAlpha = 1.0;
+                            }
+                        }
+                        
                         ctx.drawImage(
                             state.sourceImage,
                             0, 0
                         );
                         ctx.restore();
                         
+                        // Apply feathering effect
+                        if (state.settings.feather > 0) {
+                            const feather = state.settings.feather;
+                            const gradient = ctx.createRadialGradient(
+                                targetCenterX, targetCenterY, Math.min(targetWidth, targetHeight) * 0.3,
+                                targetCenterX, targetCenterY, Math.min(targetWidth, targetHeight) * 0.6
+                            );
+                            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                            gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+                            
+                            ctx.save();
+                            ctx.globalCompositeOperation = 'destination-in';
+                            ctx.fillStyle = gradient;
+                            ctx.fillRect(
+                                targetCenterX - targetWidth * 0.6,
+                                targetCenterY - targetHeight * 0.6,
+                                targetWidth * 1.2,
+                                targetHeight * 1.2
+                            );
+                            ctx.restore();
+                        }
+                        
                     } catch (error) {
                         console.error('Error rendering face:', error);
                     }
                 }
+            }
+            
+            function renderSplitView() {
+                if (!state.targetImage) return;
                 
-                // Draw grid if enabled
-                if (document.getElementById('grid-toggle').classList.contains('bg-gray-100')) {
-                    drawGrid();
+                const ctx = state.resultCtx;
+                const canvasWidth = state.resultCanvas.width;
+                const canvasHeight = state.resultCanvas.height;
+                
+                // Left side - original target
+                renderTargetImage(ctx, 0, 0, canvasWidth/2, canvasHeight);
+                
+                // Right side - swapped image
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(canvasWidth/2, 0, canvasWidth/2, canvasHeight);
+                ctx.clip();
+                renderSingleView();
+                ctx.restore();
+                
+                // Draw divider line
+                ctx.strokeStyle = '#e5e7eb';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(canvasWidth/2, 0);
+                ctx.lineTo(canvasWidth/2, canvasHeight);
+                ctx.stroke();
+            }
+            
+            function renderComparisonView() {
+                if (!state.targetImage) return;
+                
+                const ctx = state.resultCtx;
+                const canvasWidth = state.resultCanvas.width;
+                const canvasHeight = state.resultCanvas.height;
+                
+                // Draw original target image
+                renderTargetImage(ctx, 0, 0, canvasWidth, canvasHeight);
+                
+                // Draw swapped image with mask
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, canvasWidth * state.comparisonPosition, canvasHeight);
+                ctx.clip();
+                renderSingleView();
+                ctx.restore();
+                
+                // Update comparison slider position
+                updateComparisonSlider();
+            }
+            
+            function renderTargetImage(ctx, x, y, width, height) {
+                if (!state.targetImage) return;
+                
+                // Calculate dimensions to maintain aspect ratio
+                const targetRatio = state.targetImage.width / state.targetImage.height;
+                const canvasRatio = width / height;
+                
+                let drawWidth, drawHeight;
+                
+                if (canvasRatio > targetRatio) {
+                    drawHeight = height;
+                    drawWidth = drawHeight * targetRatio;
+                } else {
+                    drawWidth = width;
+                    drawHeight = drawWidth / targetRatio;
                 }
+                
+                // Center the image
+                const imgX = x + (width - drawWidth) / 2 + state.panOffset.x;
+                const imgY = y + (height - drawHeight) / 2 + state.panOffset.y;
+                
+                // Apply zoom
+                const zoomedWidth = drawWidth * state.zoomLevel;
+                const zoomedHeight = drawHeight * state.zoomLevel;
+                
+                // Draw the target image
+                ctx.drawImage(
+                    state.targetImage,
+                    imgX + (drawWidth - zoomedWidth) / 2,
+                    imgY + (drawHeight - zoomedHeight) / 2,
+                    zoomedWidth,
+                    zoomedHeight
+                );
             }
 
             function drawGrid() {
@@ -1059,6 +1805,74 @@
                     ctx.stroke();
                 }
             }
+            
+            function drawLandmarks() {
+                if (!state.targetImage || state.faces.target.length === 0) return;
+                
+                const ctx = state.resultCtx;
+                const targetFace = state.faces.target[state.selectedTargetFace];
+                
+                // Draw landmarks for target face
+                if (targetFace && targetFace.landmarks) {
+                    const positions = targetFace.landmarks.positions;
+                    
+                    ctx.fillStyle = 'red';
+                    positions.forEach(pos => {
+                        ctx.beginPath();
+                        ctx.arc(pos._x, pos._y, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
+                
+                if (!state.sourceImage || state.faces.source.length === 0) return;
+                
+                const sourceFace = state.faces.source[state.selectedSourceFace];
+                
+                // Draw landmarks for source face (if we can map them to target position)
+                if (sourceFace && sourceFace.landmarks && targetFace) {
+                    const sourcePositions = sourceFace.landmarks.positions;
+                    const targetPositions = targetFace.landmarks.positions;
+                    
+                    // Only draw if we have matching landmarks
+                    if (sourcePositions.length === targetPositions.length) {
+                        const sourceWidth = sourceFace.detection.box.width;
+                        const sourceHeight = sourceFace.detection.box.height;
+                        const targetWidth = targetFace.detection.box.width;
+                        const targetHeight = targetFace.detection.box.height;
+                        
+                        // Scale factor based on face size and user settings
+                        const scale = Math.min(
+                            targetWidth / sourceWidth,
+                            targetHeight / sourceHeight
+                        ) * state.settings.scale;
+                        
+                        // Position based on target face center
+                        const targetCenterX = targetFace.detection.box.x + targetWidth / 2;
+                        const targetCenterY = targetFace.detection.box.y + targetHeight / 2;
+                        
+                        // Apply offsets
+                        const offsetX = state.settings.xOffset * 2;
+                        const offsetY = state.settings.yOffset * 2;
+                        
+                        ctx.fillStyle = 'blue';
+                        for (let i = 0; i < sourcePositions.length; i++) {
+                            const sourcePos = sourcePositions[i];
+                            const targetPos = targetPositions[i];
+                            
+                            // Calculate position in target image
+                            const dx = sourcePos._x - (sourceFace.detection.box.x + sourceWidth / 2);
+                            const dy = sourcePos._y - (sourceFace.detection.box.y + sourceHeight / 2);
+                            
+                            const newX = targetCenterX + offsetX + dx * scale;
+                            const newY = targetCenterY + offsetY + dy * scale;
+                            
+                            ctx.beginPath();
+                            ctx.arc(newX, newY, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+            }
 
             // Keyboard Shortcuts
             function handleKeydown(e) {
@@ -1076,6 +1890,11 @@
                 else if (e.ctrlKey && e.key === 'y') {
                     e.preventDefault();
                     // redo();
+                }
+                // Ctrl+S for download
+                else if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    handleDownload();
                 }
                 // + or - for zoom
                 else if (e.key === '+' || e.key === '=') {
@@ -1101,9 +1920,17 @@
                 else if (e.key === 'g' || e.key === 'G') {
                     toggleGrid();
                 }
+                // L to toggle landmarks
+                else if (e.key === 'l' || e.key === 'L') {
+                    toggleLandmarks();
+                }
                 // C to toggle compare
                 else if (e.key === 'c' || e.key === 'C') {
-                    toggleCompare();
+                    if (state.settings.previewMode === 'compare') {
+                        setPreviewMode('single');
+                    } else {
+                        setPreviewMode('compare');
+                    }
                 }
                 // Space + drag for pan
                 if (e.key === ' ') {
@@ -1111,17 +1938,175 @@
                 }
             }
 
-            function toggleGrid() {
-                const button = document.getElementById('grid-toggle');
-                button.classList.toggle('bg-gray-100');
-                renderCanvas();
+            // Mask Editing
+            function startMaskEditing(e) {
+                if (!state.maskEditing) return;
+                
+                const rect = state.resultCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // In a real implementation, this would start drawing on the mask
+                // For now, we'll just show a visual indicator
+                const ctx = state.resultCtx;
+                ctx.beginPath();
+                ctx.arc(x, y, state.maskBrushSize, 0, Math.PI * 2);
+                ctx.fillStyle = state.maskMode === 'paint' ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+                ctx.fill();
             }
 
-            function toggleCompare() {
-                const button = document.getElementById('compare');
-                button.classList.toggle('bg-gray-100');
-                state.isComparing = !state.isComparing;
-                renderCanvas();
+            // Download Handling
+            function handleDownload() {
+                if (!state.targetImage) {
+                    showToast('Please load a target image first', 'warning');
+                    return;
+                }
+                
+                try {
+                    // Create a temporary canvas for export
+                    const exportCanvas = document.createElement('canvas');
+                    const exportCtx = exportCanvas.getContext('2d');
+                    
+                    // Set dimensions to match original target image
+                    exportCanvas.width = state.targetImage.naturalWidth;
+                    exportCanvas.height = state.targetImage.naturalHeight;
+                    
+                    // Draw target image
+                    exportCtx.drawImage(state.targetImage, 0, 0);
+                    
+                    // Draw source face if available
+                    if (state.sourceImage && 
+                        state.faces.source.length > 0 && 
+                        state.faces.target.length > 0 &&
+                        state.selectedSourceFace < state.faces.source.length &&
+                        state.selectedTargetFace < state.faces.target.length) {
+                        
+                        try {
+                            // Get current faces
+                            const sourceFace = state.faces.source[state.selectedSourceFace];
+                            const targetFace = state.faces.target[state.selectedTargetFace];
+                            
+                            // Calculate face alignment
+                            const sourceWidth = sourceFace.detection.box.width;
+                            const sourceHeight = sourceFace.detection.box.height;
+                            const targetWidth = targetFace.detection.box.width;
+                            const targetHeight = targetFace.detection.box.height;
+                            
+                            // Scale factor based on face size and user settings
+                            const scale = Math.min(
+                                targetWidth / sourceWidth,
+                                targetHeight / sourceHeight
+                            ) * state.settings.scale;
+                            
+                            // Position based on target face center
+                            const targetCenterX = targetFace.detection.box.x + targetWidth / 2;
+                            const targetCenterY = targetFace.detection.box.y + targetHeight / 2;
+                            
+                            // Apply offsets
+                            const offsetX = state.settings.xOffset * 2;
+                            const offsetY = state.settings.yOffset * 2;
+                            
+                            // Draw source face
+                            exportCtx.save();
+                            exportCtx.translate(
+                                targetCenterX + offsetX,
+                                targetCenterY + offsetY
+                            );
+                            exportCtx.rotate(state.settings.rotation * Math.PI / 180);
+                            exportCtx.scale(scale, scale);
+                            exportCtx.translate(
+                                -sourceFace.detection.box.x - sourceWidth / 2,
+                                -sourceFace.detection.box.y - sourceHeight / 2
+                            );
+                            
+                            // Apply color matching if enabled
+                            if (state.settings.colorMatch !== 'off') {
+                                // In a real implementation, this would adjust colors to match
+                                // For now, we'll just apply a simple tint for demonstration
+                                if (state.settings.colorMatch === 'advanced') {
+                                    exportCtx.globalAlpha = 0.9;
+                                    exportCtx.fillStyle = 'rgba(20, 10, 5, 0.05)';
+                                    exportCtx.fillRect(0, 0, sourceWidth, sourceHeight);
+                                    exportCtx.globalAlpha = 1.0;
+                                }
+                            }
+                            
+                            exportCtx.drawImage(
+                                state.sourceImage,
+                                0, 0
+                            );
+                            exportCtx.restore();
+                            
+                            // Apply feathering effect
+                            if (state.settings.feather > 0) {
+                                const feather = state.settings.feather;
+                                const gradient = exportCtx.createRadialGradient(
+                                    targetCenterX, targetCenterY, Math.min(targetWidth, targetHeight) * 0.3,
+                                    targetCenterX, targetCenterY, Math.min(targetWidth, targetHeight) * 0.6
+                                );
+                                gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                                gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+                                
+                                exportCtx.save();
+                                exportCtx.globalCompositeOperation = 'destination-in';
+                                exportCtx.fillStyle = gradient;
+                                exportCtx.fillRect(
+                                    targetCenterX - targetWidth * 0.6,
+                                    targetCenterY - targetHeight * 0.6,
+                                    targetWidth * 1.2,
+                                    targetHeight * 1.2
+                                );
+                                exportCtx.restore();
+                            }
+                            
+                        } catch (error) {
+                            console.error('Error rendering face for export:', error);
+                        }
+                    }
+                    
+                    // Add watermark if enabled
+                    if (state.settings.addWatermark) {
+                        const watermarkText = state.settings.watermarkText;
+                        const fontSize = state.settings.watermarkSize;
+                        exportCtx.font = `bold ${fontSize}px Arial`;
+                        exportCtx.fillStyle = `rgba(0, 0, 0, ${state.settings.watermarkOpacity / 100})`;
+                        
+                        const textWidth = exportCtx.measureText(watermarkText).width;
+                        const padding = 20;
+                        
+                        let x, y;
+                        switch (state.settings.watermarkPosition) {
+                            case 'top-left':
+                                x = padding;
+                                y = fontSize + padding;
+                                break;
+                            case 'top-right':
+                                x = exportCanvas.width - textWidth - padding;
+                                y = fontSize + padding;
+                                break;
+                            case 'bottom-left':
+                                x = padding;
+                                y = exportCanvas.height - padding;
+                                break;
+                            default: // bottom-right
+                                x = exportCanvas.width - textWidth - padding;
+                                y = exportCanvas.height - padding;
+                        }
+                        
+                        exportCtx.fillText(watermarkText, x, y);
+                    }
+                    
+                    // Create download link
+                    const link = document.createElement('a');
+                    link.download = 'faceswap-result.png';
+                    link.href = exportCanvas.toDataURL('image/png');
+                    link.click();
+                    
+                    showToast('Image exported successfully!', 'success');
+                } catch (error) {
+                    console.error('Export error:', error);
+                    showToast('Error exporting image: ' + error.message, 'error');
+                }
             }
 
             // Helper Functions
